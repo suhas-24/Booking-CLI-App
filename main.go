@@ -2,19 +2,26 @@ package main
 
 import (
 	"fmt"
-	"strings"
+	"sync"
 )
+
 
 const conferenceTickets uint = 50
 
 var conferenceName = "Go Conference"
 var remainingTickets = conferenceTickets
-var bookings = []string{}
-
+var bookings = make([]UserData, 0)
+type UserData struct{
+	firstName string
+	lastName string
+	email string
+	numberOfTickets uint
+}
+var wg = sync.WaitGroup{}
 func main() {
-
 	greetUsers()
 	userInput()
+	wg.Wait()
 }
 
 func greetUsers() {
@@ -32,6 +39,8 @@ func userInput() {
 		if isValidName && isValidEmail && isValidTicket {
 			// book a ticket
 			bookTicket(userTickets, fName, lName, email)
+			wg.Add(1)
+			go sendTicket(userTickets, fName, lName, email)
 			firstNames := getFirstName()
 			fmt.Printf("These are all our bookings: %v\n", firstNames)
 			if remainingTickets == 0 {
@@ -72,23 +81,31 @@ func getUserInput() (string, string, string, uint) {
 func getFirstName() []string {
 	firstNames := []string{}
 	for _, booking := range bookings {
-		names := strings.Fields(booking)
-		firstNames = append(firstNames, names[0])
+		firstNames = append(firstNames, booking.firstName)
 	}
 	return firstNames
 }
 
-func validateUserInput(fName string, lName string, email string, userTickets uint) (bool, bool, bool) {
-	isValidName := len(fName) > 2 && len(lName) >= 1
-	isValidEmail := strings.Contains(email, "@")
-	isValidTicket := userTickets > 0 && userTickets <= remainingTickets
-	return isValidName, isValidEmail, isValidTicket
-}
-
-func bookTicket(userTickets uint, fName string, lName string, email string) []string {
+func bookTicket(userTickets uint, fName string, lName string, email string) {
 	remainingTickets = remainingTickets - userTickets
-	bookings = append(bookings, fName+" "+lName)
+
+	// create a map for a user
+	var userData = UserData{
+		firstName: fName,
+		lastName: lName,
+		email: email,
+		numberOfTickets: userTickets,
+	}
+	bookings = append(bookings, userData)
+	fmt.Printf("List of bookings is %v\n", bookings)
 	fmt.Printf("Thank you %v %v for booking %v tickets. You will receive a confirmation mail at %v\n", fName, lName, userTickets, email)
 	fmt.Printf("%v tickets remaining for %v\n", remainingTickets, conferenceName)
-	return bookings
+}
+
+func sendTicket(userTickets uint, fName string, lName string, email string){
+	ticket := fmt.Sprintf("%v tickets for %v %v", userTickets, fName, lName)
+	fmt.Println("########################")
+	fmt.Printf("Sending ticket:\n %v \nto email address %v\n", ticket, email)
+	fmt.Println("########################")
+	wg.Done()
 }
